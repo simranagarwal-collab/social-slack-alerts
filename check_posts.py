@@ -66,6 +66,8 @@ def main():
                 if account['type'] == 'linkedin':
                     context.add_cookies([{'name': 'li_at', 'value': LINKEDIN_LI_AT, 'domain': '.linkedin.com', 'path': '/'}])
                     page = context.new_page()
+                    page.goto('https://www.linkedin.com/feed/')
+                    page.wait_for_timeout(3000)
                     page.goto(f"https://www.linkedin.com/company/{account['slug']}/posts/?feedView=all")
                     page.wait_for_timeout(5000)
                     print(f"  Title: {page.title()}")
@@ -76,7 +78,6 @@ def main():
                         if url:
                             links.add(url)
 
-                    # sort newest first
                     sorted_links = sorted(links, key=extract_id, reverse=True)
                     print(f"  Unique posts found: {len(sorted_links)}")
 
@@ -103,7 +104,6 @@ def main():
                         if url and account['username'].lower() in url.lower():
                             links.add(url)
 
-                    # sort newest first
                     sorted_links = sorted(links, key=extract_id, reverse=True)
                     print(f"  Unique posts found: {len(sorted_links)}")
 

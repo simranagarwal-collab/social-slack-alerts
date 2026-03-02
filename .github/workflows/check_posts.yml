@@ -22,9 +22,10 @@ jobs:
           playwright install chromium
           playwright install-deps chromium
 
-      - name: Run check
+           - name: Run check
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-          LINKEDIN_EMAIL: ${{ secrets.LINKEDIN_EMAIL }}
-          LINKEDIN_PASSWORD: ${{ secrets.LINKEDIN_PASSWORD }}
+          LINKEDIN_LI_AT: ${{ secrets.LINKEDIN_LI_AT }}
+          X_AUTH_TOKEN: ${{ secrets.X_AUTH_TOKEN }}
+          X_CT0: ${{ secrets.X_CT0 }}
         run: python check_posts.py

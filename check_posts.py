@@ -60,24 +60,25 @@ def main():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
 
+        # One shared LinkedIn context for both accounts
+        linkedin_context = browser.new_context()
+        linkedin_context.add_cookies([
+            {'name': 'li_at', 'value': LINKEDIN_LI_AT, 'domain': '.linkedin.com', 'path': '/'},
+            {'name': 'JSESSIONID', 'value': LINKEDIN_JSESSIONID, 'domain': '.linkedin.com', 'path': '/'},
+            {'name': 'bcookie', 'value': LINKEDIN_BCOOKIE, 'domain': '.linkedin.com', 'path': '/'},
+        ])
+        linkedin_page = linkedin_context.new_page()
+
         for account in ACCOUNTS:
             print(f"\nChecking {account['name']}...")
             try:
-                context = browser.new_context()
-
                 if account['type'] == 'linkedin':
-                    context.add_cookies([
-                        {'name': 'li_at', 'value': LINKEDIN_LI_AT, 'domain': '.linkedin.com', 'path': '/'},
-                        {'name': 'JSESSIONID', 'value': LINKEDIN_JSESSIONID, 'domain': '.linkedin.com', 'path': '/'},
-                        {'name': 'bcookie', 'value': LINKEDIN_BCOOKIE, 'domain': '.linkedin.com', 'path': '/'},
-                    ])
-                    page = context.new_page()
-                    page.goto(f"https://www.linkedin.com/company/{account['slug']}/posts/?feedView=all")
-                    page.wait_for_timeout(5000)
-                    print(f"  Title: {page.title()}")
+                    linkedin_page.goto(f"https://www.linkedin.com/company/{account['slug']}/posts/?feedView=all")
+                    linkedin_page.wait_for_timeout(5000)
+                    print(f"  Title: {linkedin_page.title()}")
 
                     links = set()
-                    for el in page.query_selector_all('a[href*="feed/update"]'):
+                    for el in linkedin_page.query_selector_all('a[href*="feed/update"]'):
                         url = clean_linkedin_url(el.get_attribute('href'))
                         if url:
                             links.add(url)
@@ -93,6 +94,7 @@ def main():
                             print(f"  Sent: {link}")
 
                 elif account['type'] == 'x':
+                    context = browser.new_context()
                     context.add_cookies([
                         {'name': 'auth_token', 'value': X_AUTH_TOKEN, 'domain': '.x.com', 'path': '/'},
                         {'name': 'ct0', 'value': X_CT0, 'domain': '.x.com', 'path': '/'}
@@ -118,11 +120,12 @@ def main():
                             post_to_slack(f"{account['emoji']} *New post on {account['name']}!*\n\n🔗 {link}\n\nGo engage 👇")
                             print(f"  Sent: {link}")
 
-                context.close()
+                    context.close()
 
             except Exception as e:
                 print(f"  Error: {e}")
 
+        linkedin_context.close()
         browser.close()
 
     save_seen(seen | new_seen)

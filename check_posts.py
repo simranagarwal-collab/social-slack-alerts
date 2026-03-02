@@ -9,26 +9,17 @@ SLACK_WEBHOOK = os.environ['SLACK_WEBHOOK']
 SEEN_FILE = 'seen_posts.json'
 
 FEEDS = [
-    {
-        'name': 'Web3Finance Club LinkedIn',
-        'url': 'https://rsshub.app/linkedin/company/web3financeclub',
-        'emoji': '🔵'
-    },
-    {
-        'name': 'Request Finance LinkedIn',
-        'url': 'https://rsshub.app/linkedin/company/request-finance',
-        'emoji': '🔵'
-    },
-    {
+       {
         'name': 'Web3Finance Club X',
-        'url': 'https://rsshub.app/twitter/user/web3financeclub',
+        'url': 'https://nitter.poast.org/web3financeclub/rss',
         'emoji': '🐦'
     },
     {
         'name': 'Request Finance X',
-        'url': 'https://rsshub.app/twitter/user/RequestFinance',
+        'url': 'https://nitter.poast.org/RequestFinance/rss',
         'emoji': '🐦'
     },
+
 ]
 
 def load_seen():

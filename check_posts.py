@@ -32,25 +32,24 @@ def save_seen(seen):
 def post_to_slack(message):
     requests.post(SLACK_WEBHOOK, json={'text': message})
 
+def extract_id(url):
+    numbers = re.findall(r'\d{10,}', url)
+    return int(numbers[-1]) if numbers else 0
+
 def clean_linkedin_url(href):
     if not href or 'feed/update' not in href:
         return None
     if not href.startswith('http'):
         href = 'https://www.linkedin.com' + href
-    # strip query params
-    href = href.split('?')[0].rstrip('/')
-    return href
+    return href.split('?')[0].rstrip('/')
 
-def clean_x_url(href, username):
+def clean_x_url(href):
     if not href or '/status/' not in href:
         return None
     if not href.startswith('http'):
         href = 'https://x.com' + href
-    # only accept exact status URLs: /USERNAME/status/DIGITS
-    match = re.match(r'https://x\.com/[^/]+/status/(\d+)$', href)
-    if not match:
-        return None
-    return href
+    match = re.match(r'(https://x\.com/[^/]+/status/\d+)$', href)
+    return match.group(1) if match else None
 
 def main():
     seen = load_seen()
@@ -77,10 +76,13 @@ def main():
                         if url:
                             links.add(url)
 
-                    print(f"  Unique posts found: {len(links)}")
-                    for link in list(links)[:5]:
+                    # sort newest first
+                    sorted_links = sorted(links, key=extract_id, reverse=True)
+                    print(f"  Unique posts found: {len(sorted_links)}")
+
+                    for link in sorted_links[:5]:
                         uid = hashlib.md5(link.encode()).hexdigest()
-                        if uid not in seen:
+                        if uid not in seen and uid not in new_seen:
                             new_seen.add(uid)
                             post_to_slack(f"{account['emoji']} *New post on {account['name']}!*\n\n🔗 {link}\n\nGo engage 👇")
                             print(f"  Sent: {link}")
@@ -96,15 +98,18 @@ def main():
                     print(f"  Title: {page.title()}")
 
                     links = set()
-                    for el in page.query_selector_all(f'a[href*="/{account["username"].lower()}/status/"], a[href*="/{account["username"]}/status/"]'):
-                        url = clean_x_url(el.get_attribute('href'), account['username'])
-                        if url:
+                    for el in page.query_selector_all('a[href*="/status/"]'):
+                        url = clean_x_url(el.get_attribute('href'))
+                        if url and account['username'].lower() in url.lower():
                             links.add(url)
 
-                    print(f"  Unique posts found: {len(links)}")
-                    for link in list(links)[:5]:
+                    # sort newest first
+                    sorted_links = sorted(links, key=extract_id, reverse=True)
+                    print(f"  Unique posts found: {len(sorted_links)}")
+
+                    for link in sorted_links[:5]:
                         uid = hashlib.md5(link.encode()).hexdigest()
-                        if uid not in seen:
+                        if uid not in seen and uid not in new_seen:
                             new_seen.add(uid)
                             post_to_slack(f"{account['emoji']} *New post on {account['name']}!*\n\n🔗 {link}\n\nGo engage 👇")
                             print(f"  Sent: {link}")

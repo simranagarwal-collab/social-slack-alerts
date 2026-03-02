@@ -7,8 +7,6 @@ from playwright.sync_api import sync_playwright
 
 SLACK_WEBHOOK = os.environ['SLACK_WEBHOOK']
 LINKEDIN_LI_AT = os.environ['LINKEDIN_LI_AT']
-LINKEDIN_JSESSIONID = os.environ.get('LINKEDIN_JSESSIONID', '')
-LINKEDIN_BCOOKIE = os.environ.get('LINKEDIN_BCOOKIE', '')
 X_AUTH_TOKEN = os.environ['X_AUTH_TOKEN']
 X_CT0 = os.environ['X_CT0']
 SEEN_FILE = 'seen_posts.json'
@@ -64,8 +62,6 @@ def main():
         linkedin_context = browser.new_context()
         linkedin_context.add_cookies([
             {'name': 'li_at', 'value': LINKEDIN_LI_AT, 'domain': '.linkedin.com', 'path': '/'},
-            {'name': 'JSESSIONID', 'value': LINKEDIN_JSESSIONID, 'domain': '.linkedin.com', 'path': '/'},
-            {'name': 'bcookie', 'value': LINKEDIN_BCOOKIE, 'domain': '.linkedin.com', 'path': '/'},
         ])
         linkedin_page = linkedin_context.new_page()
 

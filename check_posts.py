@@ -35,27 +35,32 @@ def check_linkedin(page, seen):
     page.fill('#username', LINKEDIN_EMAIL)
     page.fill('#password', LINKEDIN_PASSWORD)
     page.click('button[type=submit]')
-    page.wait_for_timeout(3000)
+    page.wait_for_timeout(5000)
+    print(f"Page title after login: {page.title()}")
 
     for account in LINKEDIN_PAGES:
         print(f"Checking {account['name']}...")
-        page.goto(f"https://www.linkedin.com/company/{account['slug']}/posts/")
-        page.wait_for_timeout(3000)
+        page.goto(f"https://www.linkedin.com/company/{account['slug']}/posts/?feedView=all")
+        page.wait_for_timeout(5000)
+        print(f"Page title: {page.title()}")
 
-        posts = page.query_selector_all('a[data-tracking-control-name="organization_guest_main-feed-card_feed-actor-name"]')
-        
-        if not posts:
-            posts = page.query_selector_all('.feed-shared-update-v2')
-
+        posts = page.query_selector_all('a[href*="feed/update"]')
         print(f"  Found {len(posts)} posts")
 
-        for post in posts[:3]:
+        seen_links = set()
+        for post in posts[:5]:
             try:
                 link = post.get_attribute('href') or ''
+                if 'feed/update' not in link:
+                    continue
+                link = link.split('?')[0]
+                if link in seen_links:
+                    continue
+                seen_links.add(link)
                 if not link.startswith('http'):
                     link = 'https://www.linkedin.com' + link
                 uid = hashlib.md5(link.encode()).hexdigest()
-                if uid not in seen and link:
+                if uid not in seen:
                     new_seen.append(uid)
                     message = f"🔵 *New post on {account['name']}!*\n\n🔗 {link}\n\nGo engage 👇"
                     post_to_slack(message)
@@ -64,6 +69,7 @@ def check_linkedin(page, seen):
                 print(f"  Error: {e}")
 
     return new_seen
+
 
 def main():
     seen = load_seen()

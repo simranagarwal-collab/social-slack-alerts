@@ -2,12 +2,14 @@ name: Social Media Slack Alerts
 
 on:
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '0 8,13,18 * * *'
   workflow_dispatch:
 
 jobs:
   check:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v3
 
@@ -29,3 +31,12 @@ jobs:
           X_AUTH_TOKEN: ${{ secrets.X_AUTH_TOKEN }}
           X_CT0: ${{ secrets.X_CT0 }}
         run: python check_posts.py
+
+      - name: Save seen posts
+        if: always()
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add seen_posts.json || true
+          git diff --staged --quiet || git commit -m "Update seen posts"
+          git push || true

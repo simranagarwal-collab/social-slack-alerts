@@ -5,13 +5,36 @@ import requests
 from playwright.sync_api import sync_playwright
 
 SLACK_WEBHOOK = os.environ['SLACK_WEBHOOK']
-LINKEDIN_EMAIL = os.environ['LINKEDIN_EMAIL']
-LINKEDIN_PASSWORD = os.environ['LINKEDIN_PASSWORD']
+LINKEDIN_LI_AT = os.environ['LINKEDIN_LI_AT']
+X_AUTH_TOKEN = os.environ['X_AUTH_TOKEN']
+X_CT0 = os.environ['X_CT0']
 SEEN_FILE = 'seen_posts.json'
 
-LINKEDIN_PAGES = [
-    {'name': 'Web3Finance Club LinkedIn', 'slug': 'web3financeclub'},
-    {'name': 'Request Finance LinkedIn', 'slug': 'request-finance'},
+ACCOUNTS = [
+    {
+        'name': 'Web3Finance Club LinkedIn',
+        'type': 'linkedin',
+        'url': 'https://www.linkedin.com/company/web3financeclub/posts/?feedView=all',
+        'emoji': '🔵'
+    },
+    {
+        'name': 'Request Finance LinkedIn',
+        'url': 'https://www.linkedin.com/company/request-finance/posts/?feedView=all',
+        'type': 'linkedin',
+        'emoji': '🔵'
+    },
+    {
+        'name': 'Web3Finance Club X',
+        'type': 'x',
+        'url': 'https://x.com/web3financeclub',
+        'emoji': '🐦'
+    },
+    {
+        'name': 'Request Finance X',
+        'type': 'x',
+        'url': 'https://x.com/RequestFinance',
+        'emoji': '🐦'
+    },
 ]
 
 def load_seen():
@@ -28,62 +51,84 @@ def save_seen(seen):
 def post_to_slack(message):
     requests.post(SLACK_WEBHOOK, json={'text': message})
 
-def check_linkedin(page, seen):
-    new_seen = []
-    print("Logging into LinkedIn...")
-    page.goto('https://www.linkedin.com/login')
-    page.fill('#username', LINKEDIN_EMAIL)
-    page.fill('#password', LINKEDIN_PASSWORD)
-    page.click('button[type=submit]')
-    page.wait_for_timeout(5000)
-    print(f"Page title after login: {page.title()}")
-
-    for account in LINKEDIN_PAGES:
-        print(f"Checking {account['name']}...")
-        page.goto(f"https://www.linkedin.com/company/{account['slug']}/posts/?feedView=all")
-        page.wait_for_timeout(5000)
-        print(f"Page title: {page.title()}")
-
-        posts = page.query_selector_all('a[href*="feed/update"]')
-        print(f"  Found {len(posts)} posts")
-
-        seen_links = set()
-        for post in posts[:5]:
-            try:
-                link = post.get_attribute('href') or ''
-                if 'feed/update' not in link:
-                    continue
-                link = link.split('?')[0]
-                if link in seen_links:
-                    continue
-                seen_links.add(link)
-                if not link.startswith('http'):
-                    link = 'https://www.linkedin.com' + link
-                uid = hashlib.md5(link.encode()).hexdigest()
-                if uid not in seen:
-                    new_seen.append(uid)
-                    message = f"🔵 *New post on {account['name']}!*\n\n🔗 {link}\n\nGo engage 👇"
-                    post_to_slack(message)
-                    print(f"  Sent to Slack: {link}")
-            except Exception as e:
-                print(f"  Error: {e}")
-
-    return new_seen
-
-
 def main():
     seen = load_seen()
     new_seen = []
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
-        try:
-            new_seen = check_linkedin(page, seen)
-        except Exception as e:
-            print(f"LinkedIn error: {e}")
-        finally:
-            browser.close()
+
+        for account in ACCOUNTS:
+            print(f"Checking {account['name']}...")
+            try:
+                if account['type'] == 'linkedin':
+                    context = browser.new_context()
+                    context.add_cookies([{
+                        'name': 'li_at',
+                        'value': LINKEDIN_LI_AT,
+                        'domain': '.linkedin.com',
+                        'path': '/'
+                    }])
+                    page = context.new_page()
+                    page.goto(account['url'])
+                    page.wait_for_timeout(5000)
+                    print(f"  Title: {page.title()}")
+
+                    posts = page.query_selector_all('a[href*="feed/update"]')
+                    seen_links = set()
+                    for post in posts[:5]:
+                        link = post.get_attribute('href') or ''
+                        if 'feed/update' not in link:
+                            continue
+                        link = link.split('?')[0]
+                        if not link.startswith('http'):
+                            link = 'https://www.linkedin.com' + link
+                        if link in seen_links:
+                            continue
+                        seen_links.add(link)
+                        uid = hashlib.md5(link.encode()).hexdigest()
+                        if uid not in seen:
+                            new_seen.append(uid)
+                            message = f"{account['emoji']} *New post on {account['name']}!*\n\n🔗 {link}\n\nGo engage 👇"
+                            post_to_slack(message)
+                            print(f"  Sent: {link}")
+
+                elif account['type'] == 'x':
+                    context = browser.new_context()
+                    context.add_cookies([
+                        {'name': 'auth_token', 'value': X_AUTH_TOKEN, 'domain': '.x.com', 'path': '/'},
+                        {'name': 'ct0', 'value': X_CT0, 'domain': '.x.com', 'path': '/'}
+                    ])
+                    page = context.new_page()
+                    page.goto(account['url'])
+                    page.wait_for_timeout(5000)
+                    print(f"  Title: {page.title()}")
+
+                    posts = page.query_selector_all('a[href*="/status/"]')
+                    seen_links = set()
+                    for post in posts[:5]:
+                        link = post.get_attribute('href') or ''
+                        if '/status/' not in link:
+                            continue
+                        if not link.startswith('http'):
+                            link = 'https://x.com' + link
+                        link = link.split('?')[0]
+                        if link in seen_links:
+                            continue
+                        seen_links.add(link)
+                        uid = hashlib.md5(link.encode()).hexdigest()
+                        if uid not in seen:
+                            new_seen.append(uid)
+                            message = f"{account['emoji']} *New post on {account['name']}!*\n\n🔗 {link}\n\nGo engage 👇"
+                            post_to_slack(message)
+                            print(f"  Sent: {link}")
+
+                context.close()
+
+            except Exception as e:
+                print(f"  Error: {e}")
+
+        browser.close()
 
     save_seen(seen + new_seen)
     print("Done.")

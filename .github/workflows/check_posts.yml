@@ -22,7 +22,7 @@ jobs:
           playwright install chromium
           playwright install-deps chromium
 
-           - name: Run check
+      - name: Run check
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
           LINKEDIN_LI_AT: ${{ secrets.LINKEDIN_LI_AT }}
